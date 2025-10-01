@@ -277,6 +277,21 @@ jobs:
         key: build-kernel-${{ env.DEVICE }}${{ env.UPLOADNAME }}
         max-size: 2G
 
+    - name: Fix MODULE_IMPORT_NS placement
+      run: |
+        cd android-kernel/drivers/kernelsu
+        # 把位于函数体内的 MODULE_IMPORT_NS 移到文件顶部
+        awk '
+          /^MODULE_IMPORT_NS/ && in_func { print "// moved-to-top"; next }
+          /^MODULE_IMPORT_NS/           { top = $0 ";"; next }
+          /^static.*init/               { in_func=1 }
+          /^}/ && in_func               { in_func=0 }
+          1
+          END { if(top) print top }
+        ' ksu.c > ksu_fixed.c
+        mv ksu_fixed.c ksu.c
+
+
     - name: 开始编译内核
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
